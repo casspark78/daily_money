@@ -124,6 +124,8 @@ function startEdit(id) {
 // ---------- 렌더링 ----------
 function render() {
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === ui.tab));
+  // 오늘 탭은 스크롤 없이 한 화면에 고정
+  document.body.classList.toggle('fixed', ui.tab === 'today');
   if (ui.tab === 'today') view.innerHTML = renderToday();
   else if (ui.tab === 'history') view.innerHTML = renderHistory();
   else if (ui.tab === 'monthly') view.innerHTML = renderMonthly();
@@ -161,13 +163,11 @@ function renderSummary(s) {
 function renderChips() {
   const favs = state.settings.favorites.map((f) => ({ ...f, fav: true }));
   const recs = suggestions(state, today(), new Date(), Math.max(0, 6 - favs.length));
-  const all = [...favs, ...recs];
-  if (all.length === 0) return '';
-  return `<div class="chips">${all
+  return [...favs, ...recs]
     .map((c) => `<button type="button" class="chip quick" data-action="quick" data-cat="${esc(c.category)}" data-amount="${c.amount}" data-memo="${esc(c.label || c.memo || '')}">
         ${c.fav ? '⭐' : ''}${cat(c.category).icon} ${esc(c.label || c.memo || cat(c.category).name)} <b>${c.amount.toLocaleString('ko-KR')}</b>
       </button>`)
-    .join('')}</div>`;
+    .join('');
 }
 
 function renderEntry() {
@@ -186,14 +186,19 @@ function renderEntry() {
       <button type="button" data-action="delete-editing" class="danger">🗑 삭제</button>
       <button type="button" data-action="cancel-edit">취소</button></div>` : ''}
     <output id="amount" class="amount ${ui.amount ? '' : 'empty'}">${ui.amount ? won(Number(ui.amount)) : '₩0'}</output>
-    <div class="meta">
+    <div class="chips">
       <button type="button" class="chip ${isToday ? '' : 'accent'}" data-action="pick-date">📅 ${isToday ? '오늘' : dayLabel(ui.date)}</button>
       <input type="date" id="date-input" class="visually-hidden" value="${ui.date}" max="${today()}" tabindex="-1" aria-label="날짜 선택">
       <button type="button" class="chip ${ui.memo ? 'accent' : ''}" data-action="toggle-memo">✏️ ${ui.memo ? esc(ui.memo) : '메모'}</button>
+      ${!editing && !state.expenses.some((e) => e.date === ui.date)
+        ? `<button type="button" class="chip ${state.noSpendDays.includes(ui.date) ? 'accent' : ''}" data-action="nospend">🙌 ${state.noSpendDays.includes(ui.date) ? '무지출 ✓' : '무지출'}</button>`
+        : ''}
+      ${editing || ui.showMemo ? '' : renderChips()}
     </div>
     ${ui.showMemo ? `<input id="memo" class="memo" type="text" maxlength="40" placeholder="메모 (예: 점심 김밥)" value="${esc(ui.memo)}" enterkeyhint="done">` : ''}
-    ${editing ? '' : renderChips()}
-    <p class="cat-title">${editing ? '카테고리를 누르면 수정이 저장돼요' : '금액 입력 후 카테고리를 누르면 저장돼요'}</p>
+    ${editing || state.expenses.length === 0
+      ? `<p class="cat-title">${editing ? '카테고리를 누르면 수정이 저장돼요' : '금액 입력 후 카테고리를 누르면 저장돼요'}</p>`
+      : ''}
     <div class="cats">${cats}</div>
     <div class="keypad">${keys
       .map((k) => `<button type="button" class="key ${k.startsWith('+') ? 'inc' : ''} ${k === 'clear' ? 'muted' : ''}" data-key="${k}" aria-label="${keyLabel[k] || k}">${keyLabel[k] || k}</button>`)
@@ -219,23 +224,11 @@ function renderItems(list) {
     .join('');
 }
 
-function renderDayList() {
-  const list = state.expenses.filter((e) => e.date === ui.date);
-  const total = list.reduce((s, e) => s + e.amount, 0);
-  const isToday = ui.date === today();
-  const marked = state.noSpendDays.includes(ui.date);
-  return `
-  <section class="card">
-    <div class="list-head"><h2>${isToday ? '오늘' : dayLabel(ui.date)} 내역</h2><span>${total ? '-' + won(total) : ''}</span></div>
-    ${list.length
-      ? `<ul class="items">${renderItems(list)}</ul><p class="hint">항목을 누르면 수정·⭐즐겨찾기, 왼쪽으로 밀면 삭제</p>`
-      : `<button type="button" class="nospend ${marked ? 'on' : ''}" data-action="nospend">${marked ? '✅ 무지출 데이 완료!' : '🙌 오늘은 지출 없음'}</button>`}
-  </section>`;
-}
 
 function renderToday() {
   const s = summarize(state, today());
-  return renderSummary(s) + renderEntry() + renderDayList();
+  // 수정 중에는 요약을 숨겨 키패드 공간 확보
+  return (ui.editingId ? '' : renderSummary(s)) + renderEntry();
 }
 
 function manUnit(n) {
