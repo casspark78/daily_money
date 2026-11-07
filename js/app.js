@@ -15,6 +15,8 @@ const ui = {
   editingId: null,
   calMonth: null, // 'YYYY-MM'
   calSel: null, // 달력에서 선택한 날짜
+  year: null, // 월별 탭에서 보는 연도
+  monthSel: null, // 월별 탭에서 선택한 달 'YYYY-MM'
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -124,6 +126,7 @@ function render() {
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === ui.tab));
   if (ui.tab === 'today') view.innerHTML = renderToday();
   else if (ui.tab === 'history') view.innerHTML = renderHistory();
+  else if (ui.tab === 'monthly') view.innerHTML = renderMonthly();
   else view.innerHTML = renderSettings();
 }
 
@@ -235,12 +238,11 @@ function renderToday() {
   return renderSummary(s) + renderEntry() + renderDayList();
 }
 
-function compactWon(n) {
-  // 달력 칸에 크게 보이도록 최대 4글자로 줄여서 표시
-  if (n >= 100000) return Math.round(n / 10000) + '만';
-  if (n >= 10000) return (Math.round(n / 1000) / 10) + '만';
-  if (n >= 1000) return (Math.round(n / 100) / 10) + '천';
-  return String(n);
+function manUnit(n) {
+  // 달력 칸에 크게 보이도록 '만원' 단위 숫자만 표시 (예: 13,500 → 1.4, 1,280,000 → 128)
+  const v = n / 10000;
+  if (v >= 10) return String(Math.round(v));
+  return String(Math.max(0.1, Math.round(v * 10) / 10));
 }
 
 function shiftMonth(ym, n) {
@@ -295,7 +297,7 @@ function renderHistory() {
     if (k === sel) cls += ' sel';
     if (dow === 0) cls += ' sun';
     if (dow === 6) cls += ' sat';
-    const mark = amt > 0 ? compactWon(amt) : !future && noSpend.has(k) ? '🙌' : '';
+    const mark = amt > 0 ? manUnit(amt) : !future && noSpend.has(k) ? '🙌' : '';
     cells.push(`<button type="button" class="${cls}" data-action="cal-day" data-date="${k}" ${future ? 'disabled' : ''}
         aria-label="${m}월 ${d}일${amt ? ' ' + won(amt) : ''}"><span class="d">${d}</span><span class="a">${mark}</span></button>`);
   }
@@ -333,7 +335,8 @@ function renderHistory() {
       ${[...WEEK].map((w, i) => `<span class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}
       ${cells.join('')}
     </div>
-    <p class="cal-legend"><i class="lg under"></i>하루 예산 ${won(allowance)} 이하 <i class="lg over"></i>초과 🙌 무지출</p>
+    <p class="cal-legend unit">칸 안의 금액 단위: <b>만원</b></p>
+    <p class="cal-legend"><i class="lg under"></i>하루 예산 ${won(allowance)} 이하 <i class="lg over"></i>초과 · 🙌 무지출</p>
   </section>
   ${detail}
   <section class="card">
@@ -343,6 +346,87 @@ function renderHistory() {
         <div class="hbar"><span style="width:${Math.round((v / max) * 100)}%"></span></div><b>${won(v)}</b></li>`)
       .join('')}</ul>` : '<p class="hint">이 달에는 기록이 없어요</p>'}
   </section>`;
+}
+
+function renderMonthly() {
+  const todayKey = today();
+  const curYm = todayKey.slice(0, 7);
+  const year = ui.year || Number(todayKey.slice(0, 4));
+  const goal = state.settings.monthlyGoal;
+
+  const byMonth = {};
+  for (const e of state.expenses) {
+    if (!e.date.startsWith(String(year))) continue;
+    const ym = e.date.slice(0, 7);
+    (byMonth[ym] ||= { total: 0, cats: {} });
+    byMonth[ym].total += e.amount;
+    byMonth[ym].cats[e.category] = (byMonth[ym].cats[e.category] || 0) + e.amount;
+  }
+
+  let yearTotal = 0;
+  let monthsWithData = 0;
+  let metGoal = 0;
+  const cells = [];
+  for (let mo = 1; mo <= 12; mo++) {
+    const ym = `${year}-${String(mo).padStart(2, '0')}`;
+    const t = byMonth[ym]?.total || 0;
+    const future = ym > curYm;
+    if (t > 0) {
+      yearTotal += t;
+      monthsWithData++;
+      if (ym < curYm && goal > 0 && t <= goal) metGoal++;
+    }
+    let cls = 'mon-cell';
+    if (future) cls += ' future';
+    else if (t > 0 && goal > 0 && t > goal) cls += ' over';
+    else if (t > 0) cls += ' under';
+    if (ym === curYm) cls += ' today';
+    if (ym === (ui.monthSel || curYm)) cls += ' sel';
+    cells.push(`<button type="button" class="${cls}" data-action="mon-pick" data-ym="${ym}" ${future ? 'disabled' : ''}>
+      <span class="d">${mo}월</span><span class="a">${t ? t.toLocaleString('ko-KR') : future ? '' : '-'}</span></button>`);
+  }
+
+  const sel = ui.monthSel && ui.monthSel.startsWith(String(year))
+    ? ui.monthSel
+    : year === Number(curYm.slice(0, 4)) ? curYm : null;
+  let detail = '';
+  if (sel) {
+    const data = byMonth[sel] || { total: 0, cats: {} };
+    const cats = Object.entries(data.cats).sort((a, b) => b[1] - a[1]);
+    const max = cats[0]?.[1] || 1;
+    const mo = Number(sel.slice(5));
+    detail = `<section class="card">
+      <div class="list-head big-head"><h2>${mo}월 유형별 지출</h2>
+        <span class="${goal > 0 && data.total > goal ? 'neg' : 'pos'}">${data.total ? won(data.total) : ''}</span></div>
+      ${goal > 0 && data.total ? `<p class="mon-goal">목표 ${won(goal)} 대비 ${Math.round((data.total / goal) * 100)}%</p>` : ''}
+      ${cats.length ? `<ul class="bars big">${cats
+        .map(([id, v]) => `<li>
+          <div class="bar-label"><span>${esc(cat(id).icon)} ${esc(cat(id).name)}</span>
+            <b>${won(v)} <small>${Math.round((v / data.total) * 100)}%</small></b></div>
+          <div class="hbar"><span style="width:${Math.max(2, Math.round((v / max) * 100))}%"></span></div>
+        </li>`)
+        .join('')}</ul>` : '<p class="hint">이 달에는 기록이 없어요</p>'}
+      <button type="button" class="btn" data-action="mon-to-daily" data-ym="${sel}">📅 ${mo}월 일별로 보기</button>
+    </section>`;
+  }
+
+  return `
+  <section class="card cal">
+    <div class="cal-nav">
+      <button type="button" data-action="year-prev" aria-label="이전 해">‹</button>
+      <h2>${year}년</h2>
+      <button type="button" data-action="year-next" aria-label="다음 해" ${year >= Number(todayKey.slice(0, 4)) ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="cal-stats">
+      <div><small>올해 지출</small><b class="${won(yearTotal).length > 8 ? 'long' : ''}">${won(yearTotal)}</b></div>
+      <div><small>월 평균</small><b class="${won(monthsWithData ? yearTotal / monthsWithData : 0).length > 8 ? 'long' : ''}">${won(monthsWithData ? yearTotal / monthsWithData : 0)}</b></div>
+      <div><small>목표 달성</small><b class="pos">${metGoal}개월</b></div>
+    </div>
+    <div class="mon-grid">${cells.join('')}</div>
+    <p class="cal-legend"><i class="lg under"></i>월 목표 ${won(goal)} 이하 <i class="lg over"></i>초과</p>
+    ${sel ? '' : '<p class="hint big-hint">월을 누르면 유형별 지출이 나와요</p>'}
+  </section>
+  ${detail}`;
 }
 
 function renderSettings() {
@@ -456,6 +540,24 @@ document.addEventListener('click', (ev) => {
       ui.calMonth = shiftMonth(ui.calMonth || today().slice(0, 7), action === 'cal-prev' ? -1 : 1);
       ui.calSel = null;
       render();
+      break;
+    case 'year-prev':
+    case 'year-next':
+      ui.year = (ui.year || Number(today().slice(0, 4))) + (action === 'year-prev' ? -1 : 1);
+      ui.monthSel = null;
+      render();
+      break;
+    case 'mon-pick':
+      ui.monthSel = t.dataset.ym;
+      render();
+      document.querySelector('.cal + .card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      break;
+    case 'mon-to-daily':
+      ui.tab = 'history';
+      ui.calMonth = t.dataset.ym;
+      ui.calSel = null;
+      render();
+      window.scrollTo(0, 0);
       break;
     case 'cal-day':
       ui.calSel = t.dataset.date;
