@@ -19,7 +19,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0b0f14;
     --card: #151b23;
     --text: #f3f4f6;
@@ -34,8 +34,28 @@
     --danger-soft: #3f1d1d;
     --warn: #fbbf24;
     --warn-soft: #3a2e10;
+    color-scheme: dark;
   }
 }
+
+:root[data-theme="dark"] {
+  --bg: #0b0f14;
+  --card: #151b23;
+  --text: #f3f4f6;
+  --muted: #9ca3af;
+  --line: #273040;
+  --key: #1f2833;
+  --key-press: #2b3644;
+  --primary: #34d399;
+  --primary-ink: #6ee7b7;
+  --primary-soft: #0f3b2e;
+  --danger: #f87171;
+  --danger-soft: #3f1d1d;
+  --warn: #fbbf24;
+  --warn-soft: #3a2e10;
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -183,6 +203,9 @@ main { max-width: 480px; margin: 0 auto; padding: calc(env(safe-area-inset-top) 
 .hbar span { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
 
 /* 설정 */
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: 12px; background: var(--key); }
+.seg button { padding: 10px 4px; border-radius: 9px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.seg button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
 .form h2 { font-size: 16px; margin-bottom: 12px; }
 .form label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 .form input, .form select {

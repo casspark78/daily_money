@@ -16,6 +16,7 @@ function defaultState() {
     settings: {
       monthlyGoal: 800000,
       monthStartDay: 1,
+      theme: 'auto', // 'auto' | 'light' | 'dark'
       categories: DEFAULT_CATEGORIES.map((c) => ({ ...c })),
       favorites: [], // { id, category, amount, label }
     },
@@ -33,6 +34,7 @@ export function normalize(raw) {
   }
   if (!Array.isArray(settings.favorites)) settings.favorites = [];
   settings.monthlyGoal = Math.max(0, Math.round(Number(settings.monthlyGoal) || 0));
+  if (!['auto', 'light', 'dark'].includes(settings.theme)) settings.theme = 'auto';
   settings.monthStartDay = Math.min(28, Math.max(1, Math.round(Number(settings.monthStartDay) || 1)));
   return {
     version: 1,
