@@ -195,6 +195,37 @@ main { max-width: 480px; margin: 0 auto; padding: calc(env(safe-area-inset-top) 
 }
 .nospend.on { border: 2px solid var(--primary); background: var(--primary-soft); color: var(--primary-ink); }
 
+/* 달력 */
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-nav h2 { font-size: 17px; }
+.cal-nav button { width: 40px; height: 40px; border-radius: 12px; background: var(--key); font-size: 22px; line-height: 1; }
+.cal-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.cal-stats div { background: var(--key); border-radius: 12px; padding: 8px 4px; text-align: center; display: grid; gap: 2px; }
+.cal-stats small { font-size: 11px; color: var(--muted); }
+.cal-stats b { font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow { text-align: center; font-size: 11px; color: var(--muted); padding-bottom: 2px; }
+.cal-cell {
+  aspect-ratio: 1 / 1.1; border-radius: 10px; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-start; gap: 1px; padding-top: 5px; background: var(--key); min-width: 0;
+}
+.cal-cell.blank { background: none; }
+.cal-cell .d { font-size: 12px; font-weight: 600; }
+.cal-cell .a { font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.3px; white-space: nowrap; }
+.cal-cell.under { background: var(--primary-soft); color: var(--primary-ink); }
+.cal-cell.over { background: var(--danger-soft); color: var(--danger); }
+.cal-cell.zero { background: var(--primary-soft); }
+.cal-cell.future { background: none; opacity: .35; }
+.cal-cell.sun .d, .cal-dow.sun { color: var(--danger); }
+.cal-cell.sat .d, .cal-dow.sat { color: #3b82f6; }
+.cal-cell.today { box-shadow: inset 0 0 0 2px var(--text); }
+.cal-cell.sel { box-shadow: inset 0 0 0 2px var(--primary); }
+.cal-cell.today.sel { box-shadow: inset 0 0 0 2px var(--primary), inset 0 0 0 4px var(--card); }
+.cal-legend { margin-top: 10px; font-size: 11px; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.lg { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 6px; }
+.lg.under { background: var(--primary-soft); outline: 1px solid var(--primary); }
+.lg.over { background: var(--danger-soft); outline: 1px solid var(--danger); }
+
 /* 내역: 카테고리 막대 */
 .bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .bars li { display: grid; grid-template-columns: 76px 1fr auto; gap: 10px; align-items: center; font-size: 14px; }
