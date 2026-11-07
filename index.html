@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Daily Money</title>
+  <meta name="description" content="매일 지출을 빠르게 기록하고 월 목표 지출을 지키는 가계부">
+  <meta name="theme-color" content="#10b981">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Daily Money">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <h1 class="visually-hidden">Daily Money</h1>
+  <main id="view"></main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <nav class="tabbar">
+    <button type="button" data-tab="today" class="active"><span>🏠</span>오늘</button>
+    <button type="button" data-tab="history"><span>📋</span>내역</button>
+    <button type="button" data-tab="settings"><span>⚙️</span>설정</button>
+  </nav>
+  <noscript>이 앱은 JavaScript가 필요해요.</noscript>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
