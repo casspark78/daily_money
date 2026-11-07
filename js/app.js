@@ -13,6 +13,8 @@ const ui = {
   memo: '',
   showMemo: false,
   editingId: null,
+  calMonth: null, // 'YYYY-MM'
+  calSel: null, // 달력에서 선택한 날짜
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -233,32 +235,115 @@ function renderToday() {
   return renderSummary(s) + renderEntry() + renderDayList();
 }
 
+function compactWon(n) {
+  if (n >= 100000) return Math.round(n / 10000) + '만';
+  if (n >= 10000) return (Math.round(n / 1000) / 10).toString() + '만';
+  return n.toLocaleString('ko-KR');
+}
+
+function shiftMonth(ym, n) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function renderHistory() {
-  const s = summarize(state, today());
-  const cats = Object.entries(s.byCategory).sort((a, b) => b[1] - a[1]);
-  const max = cats[0]?.[1] || 1;
+  const todayKey = today();
+  const ym = ui.calMonth || todayKey.slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const firstDow = new Date(y, m - 1, 1).getDay();
+  const allowance = state.settings.monthlyGoal / daysInMonth;
+  const noSpend = new Set(state.noSpendDays);
+
   const byDate = {};
-  for (const e of s.expenses) (byDate[e.date] ||= []).push(e);
-  const dates = Object.keys(byDate).sort().reverse();
-  const allowance = state.settings.monthlyGoal / s.period.totalDays;
+  const byCategory = {};
+  let total = 0;
+  for (const e of state.expenses) {
+    if (!e.date.startsWith(ym)) continue;
+    byDate[e.date] = (byDate[e.date] || 0) + e.amount;
+    byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
+    total += e.amount;
+  }
+
+  const isCurrent = ym === todayKey.slice(0, 7);
+  const isFuture = ym > todayKey.slice(0, 7);
+  const elapsed = isCurrent ? Number(todayKey.slice(8)) : isFuture ? 0 : daysInMonth;
+  let overDays = 0;
+  let noSpendDays = 0;
+  for (let d = 1; d <= elapsed; d++) {
+    const k = `${ym}-${String(d).padStart(2, '0')}`;
+    if ((byDate[k] || 0) > allowance) overDays++;
+    if (!byDate[k] && noSpend.has(k)) noSpendDays++;
+  }
+
+  let sel = ui.calSel && ui.calSel.startsWith(ym) ? ui.calSel : isCurrent ? todayKey : null;
+
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push('<span class="cal-cell blank"></span>');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const k = `${ym}-${String(d).padStart(2, '0')}`;
+    const amt = byDate[k] || 0;
+    const future = k > todayKey;
+    const dow = (firstDow + d - 1) % 7;
+    let cls = 'cal-cell';
+    if (future) cls += ' future';
+    else if (amt > allowance) cls += ' over';
+    else if (amt > 0) cls += ' under';
+    else if (noSpend.has(k)) cls += ' zero';
+    if (k === todayKey) cls += ' today';
+    if (k === sel) cls += ' sel';
+    if (dow === 0) cls += ' sun';
+    if (dow === 6) cls += ' sat';
+    const mark = amt > 0 ? compactWon(amt) : !future && noSpend.has(k) ? '🙌' : '';
+    cells.push(`<button type="button" class="${cls}" data-action="cal-day" data-date="${k}" ${future ? 'disabled' : ''}
+        aria-label="${m}월 ${d}일${amt ? ' ' + won(amt) : ''}"><span class="d">${d}</span><span class="a">${mark}</span></button>`);
+  }
+
+  const cats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+  const max = cats[0]?.[1] || 1;
+
+  let detail = '';
+  if (sel) {
+    const list = state.expenses.filter((e) => e.date === sel);
+    const dayTotal = list.reduce((a, e) => a + e.amount, 0);
+    detail = `<section class="card">
+      <div class="list-head"><h2>${dayLabel(sel)}</h2>
+        <span class="${dayTotal > allowance ? 'neg' : 'pos'}">${dayTotal ? '-' + won(dayTotal) : ''}</span></div>
+      ${list.length
+        ? `<ul class="items">${renderItems(list)}</ul>`
+        : `<p class="hint">${noSpend.has(sel) ? '🙌 무지출 데이였어요' : '기록이 없어요'}</p>`}
+      <button type="button" class="btn" data-action="add-on-day" data-date="${sel}">＋ 이 날 지출 추가</button>
+    </section>`;
+  }
 
   return `
+  <section class="card cal">
+    <div class="cal-nav">
+      <button type="button" data-action="cal-prev" aria-label="이전 달">‹</button>
+      <h2>${y}년 ${m}월</h2>
+      <button type="button" data-action="cal-next" aria-label="다음 달" ${isCurrent || isFuture ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="cal-stats">
+      <div><small>총 지출</small><b>${won(total)}</b></div>
+      <div><small>하루 평균</small><b>${won(elapsed ? total / elapsed : 0)}</b></div>
+      <div><small>초과한 날</small><b class="${overDays ? 'neg' : ''}">${overDays}일</b></div>
+      <div><small>무지출</small><b class="pos">${noSpendDays}일</b></div>
+    </div>
+    <div class="cal-grid">
+      ${[...WEEK].map((w, i) => `<span class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}
+      ${cells.join('')}
+    </div>
+    <p class="cal-legend"><i class="lg under"></i>하루 예산 ${won(allowance)} 이하 <i class="lg over"></i>초과 🙌 무지출</p>
+  </section>
+  ${detail}
   <section class="card">
-    <div class="list-head"><h2>${s.period.label} 카테고리</h2><span>-${won(s.spentTotal)}</span></div>
+    <div class="list-head"><h2>${m}월 카테고리</h2><span>${total ? '-' + won(total) : ''}</span></div>
     ${cats.length ? `<ul class="bars">${cats
       .map(([id, v]) => `<li><span>${esc(cat(id).icon)} ${esc(cat(id).name)}</span>
         <div class="hbar"><span style="width:${Math.round((v / max) * 100)}%"></span></div><b>${won(v)}</b></li>`)
-      .join('')}</ul>` : '<p class="hint">아직 이번 달 기록이 없어요</p>'}
-  </section>
-  ${dates
-    .map((d) => {
-      const total = byDate[d].reduce((a, e) => a + e.amount, 0);
-      return `<section class="card">
-        <div class="list-head"><h2>${dayLabel(d)}</h2><span class="${total > allowance ? 'neg' : 'pos'}">-${won(total)}</span></div>
-        <ul class="items">${renderItems(byDate[d])}</ul>
-      </section>`;
-    })
-    .join('')}`;
+      .join('')}</ul>` : '<p class="hint">이 달에는 기록이 없어요</p>'}
+  </section>`;
 }
 
 function renderSettings() {
@@ -367,6 +452,23 @@ document.addEventListener('click', (ev) => {
       render();
       break;
     }
+    case 'cal-prev':
+    case 'cal-next':
+      ui.calMonth = shiftMonth(ui.calMonth || today().slice(0, 7), action === 'cal-prev' ? -1 : 1);
+      ui.calSel = null;
+      render();
+      break;
+    case 'cal-day':
+      ui.calSel = t.dataset.date;
+      render();
+      break;
+    case 'add-on-day':
+      resetEntry();
+      ui.tab = 'today';
+      ui.date = t.dataset.date;
+      render();
+      window.scrollTo({ top: $('.entry')?.offsetTop - 8 || 0, behavior: 'smooth' });
+      break;
     case 'quick':
       addExpense({ amount: Number(t.dataset.amount), category: t.dataset.cat, memo: t.dataset.memo || '' });
       render();
