@@ -268,6 +268,13 @@ function renderSettings() {
     .join('');
   return `
   <section class="card form">
+    <h2>화면</h2>
+    <div class="seg" role="radiogroup" aria-label="화면 모드">${[['auto', '📱 자동'], ['light', '☀️ 라이트'], ['dark', '🌙 다크']]
+      .map(([v, l]) => `<button type="button" role="radio" aria-checked="${st.theme === v}" class="${st.theme === v ? 'on' : ''}" data-action="theme" data-theme="${v}">${l}</button>`)
+      .join('')}</div>
+    <p class="hint">자동은 휴대폰의 다크 모드 설정을 따라가요</p>
+  </section>
+  <section class="card form">
     <h2>예산</h2>
     <label>월 목표 지출
       <input id="goal" type="text" inputmode="numeric" value="${st.monthlyGoal.toLocaleString('ko-KR')}">
@@ -414,6 +421,12 @@ document.addEventListener('click', (ev) => {
       render();
       break;
     }
+    case 'theme':
+      state.settings.theme = t.dataset.theme;
+      persist();
+      applyTheme();
+      render();
+      break;
     case 'cat-add':
       state.settings.categories.push({ id: uid(), name: '새 항목', icon: '🏷️' });
       persist();
@@ -459,6 +472,7 @@ document.addEventListener('click', (ev) => {
       if (confirm('모든 지출 기록과 설정을 삭제할까요? 되돌릴 수 없어요.')) {
         state = resetState();
         persist();
+        applyTheme();
         resetEntry();
         render();
         toast('초기화했어요');
@@ -500,6 +514,7 @@ document.addEventListener('change', async (ev) => {
       if (!confirm(`지출 ${data.expenses.length}건을 불러와 현재 데이터를 덮어쓸까요?`)) return;
       state = data;
       persist();
+      applyTheme();
       render();
       toast('백업을 불러왔어요');
     } catch {
@@ -565,9 +580,22 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// ---------- 화면 모드 ----------
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+function applyTheme() {
+  const theme = state.settings.theme;
+  const root = document.documentElement;
+  if (theme === 'auto') delete root.dataset.theme;
+  else root.dataset.theme = theme;
+  const dark = theme === 'dark' || (theme === 'auto' && darkQuery.matches);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b0f14' : '#f4f6f8');
+}
+darkQuery.addEventListener?.('change', applyTheme);
+
 // ---------- 시작 ----------
 const params = new URLSearchParams(location.search);
 if (params.get('action') === 'add') ui.tab = 'today';
+applyTheme();
 render();
 
 if ('serviceWorker' in navigator) {

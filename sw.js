@@ -1,5 +1,5 @@
 // 오프라인 캐시. 파일을 바꾸면 CACHE 버전을 올려 주세요.
-const CACHE = 'daily-money-v1';
+const CACHE = 'daily-money-v2';
 const ASSETS = [
   './',
   './index.html',
