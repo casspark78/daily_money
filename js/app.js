@@ -236,9 +236,11 @@ function renderToday() {
 }
 
 function compactWon(n) {
+  // 달력 칸에 크게 보이도록 최대 4글자로 줄여서 표시
   if (n >= 100000) return Math.round(n / 10000) + '만';
-  if (n >= 10000) return (Math.round(n / 1000) / 10).toString() + '만';
-  return n.toLocaleString('ko-KR');
+  if (n >= 10000) return (Math.round(n / 1000) / 10) + '만';
+  if (n >= 1000) return (Math.round(n / 100) / 10) + '천';
+  return String(n);
 }
 
 function shiftMonth(ym, n) {
@@ -269,11 +271,9 @@ function renderHistory() {
   const isCurrent = ym === todayKey.slice(0, 7);
   const isFuture = ym > todayKey.slice(0, 7);
   const elapsed = isCurrent ? Number(todayKey.slice(8)) : isFuture ? 0 : daysInMonth;
-  let overDays = 0;
   let noSpendDays = 0;
   for (let d = 1; d <= elapsed; d++) {
     const k = `${ym}-${String(d).padStart(2, '0')}`;
-    if ((byDate[k] || 0) > allowance) overDays++;
     if (!byDate[k] && noSpend.has(k)) noSpendDays++;
   }
 
@@ -325,9 +325,8 @@ function renderHistory() {
       <button type="button" data-action="cal-next" aria-label="다음 달" ${isCurrent || isFuture ? 'disabled' : ''}>›</button>
     </div>
     <div class="cal-stats">
-      <div><small>총 지출</small><b>${won(total)}</b></div>
-      <div><small>하루 평균</small><b>${won(elapsed ? total / elapsed : 0)}</b></div>
-      <div><small>초과한 날</small><b class="${overDays ? 'neg' : ''}">${overDays}일</b></div>
+      <div><small>총 지출</small><b class="${won(total).length > 8 ? 'long' : ''}">${won(total)}</b></div>
+      <div><small>하루 평균</small><b class="${won(elapsed ? total / elapsed : 0).length > 8 ? 'long' : ''}">${won(elapsed ? total / elapsed : 0)}</b></div>
       <div><small>무지출</small><b class="pos">${noSpendDays}일</b></div>
     </div>
     <div class="cal-grid">
