@@ -167,7 +167,7 @@ body.fixed .cats { margin-top: 10px; }
 .chip.quick b { margin-left: 2px; }
 .chip.quick:active { transform: scale(.96); }
 
-.cat-title { margin: 10px 0 6px; font-size: 12px; color: var(--muted); text-align: center; }
+.cat-title { margin: 12px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
 .cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .cat {
   display: flex; align-items: center; justify-content: center; gap: 6px;
