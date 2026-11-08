@@ -251,12 +251,10 @@ function renderHistory() {
   const isNoSpend = noSpendChecker(state, todayKey);
 
   const byDate = {};
-  const byCategory = {};
   let total = 0;
   for (const e of state.expenses) {
     if (!e.date.startsWith(ym)) continue;
     byDate[e.date] = (byDate[e.date] || 0) + e.amount;
-    byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
     total += e.amount;
   }
 
@@ -292,9 +290,6 @@ function renderHistory() {
         aria-label="${m}월 ${d}일${amt ? ' ' + won(amt) : ''}"><span class="d">${d}</span><span class="a">${mark}</span></button>`);
   }
 
-  const cats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
-  const max = cats[0]?.[1] || 1;
-
   let detail = '';
   if (sel) {
     const list = state.expenses.filter((e) => e.date === sel);
@@ -328,14 +323,7 @@ function renderHistory() {
     <p class="cal-legend unit">칸 안의 금액 단위: <b>만원</b></p>
     <p class="cal-legend"><i class="lg under"></i>하루 예산 ${won(allowance)} 이하 <i class="lg over"></i>초과 <i class="lg zero"></i>무지출</p>
   </section>
-  ${detail}
-  <section class="card">
-    <div class="list-head"><h2>${m}월 카테고리</h2><span>${total ? '-' + won(total) : ''}</span></div>
-    ${cats.length ? `<ul class="bars">${cats
-      .map(([id, v]) => `<li><span>${esc(cat(id).icon)} ${esc(cat(id).name)}</span>
-        <div class="hbar"><span style="width:${Math.round((v / max) * 100)}%"></span></div><b>${won(v)}</b></li>`)
-      .join('')}</ul>` : '<p class="hint">이 달에는 기록이 없어요</p>'}
-  </section>`;
+  ${detail}`;
 }
 
 function renderMonthly() {
