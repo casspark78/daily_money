@@ -230,6 +230,19 @@ function renderToday() {
   return (ui.editingId ? '' : renderSummary(s)) + renderEntry();
 }
 
+// 합계 금액을 '만' 단위로 짧게 (예: 300,000 → 30만, 1,362,850 → 136.3만, 8,500 → 8,500원)
+function manWon(n) {
+  n = Math.round(n);
+  if (n < 10000) return n.toLocaleString('ko-KR') + '원';
+  const v = n / 10000;
+  if (v >= 1000) return Math.round(v).toLocaleString('ko-KR') + '만';
+  return (Math.round(v * 10) / 10).toLocaleString('ko-KR') + '만';
+}
+
+function statB(text, extra = '') {
+  return `<b class="${extra} ${text.length >= 6 ? 'long' : ''}">${text}</b>`;
+}
+
 function manUnit(n) {
   // 달력 칸에 크게 보이도록 '만원' 단위 숫자만 표시 (예: 13,500 → 1.4, 1,280,000 → 128)
   const v = n / 10000;
@@ -314,8 +327,8 @@ function renderHistory() {
       <button type="button" data-action="cal-next" aria-label="다음 달" ${isCurrent || isFuture ? 'disabled' : ''}>›</button>
     </div>
     <div class="cal-stats">
-      <div><small>총 지출</small><b class="${won(total).length > 8 ? 'long' : ''}">${won(total)}</b></div>
-      <div><small>하루 평균</small><b class="${won(elapsed ? total / elapsed : 0).length > 8 ? 'long' : ''}">${won(elapsed ? total / elapsed : 0)}</b></div>
+      <div><small>총 지출</small>${statB(manWon(total))}</div>
+      <div><small>하루 평균</small>${statB(manWon(elapsed ? total / elapsed : 0))}</div>
       <div><small>무지출</small><b class="nsp">${noSpendDays}일</b></div>
     </div>
     <div class="cal-grid">
@@ -363,7 +376,7 @@ function renderMonthly() {
     if (ym === curYm) cls += ' today';
     if (ym === (ui.monthSel || curYm)) cls += ' sel';
     cells.push(`<button type="button" class="${cls}" data-action="mon-pick" data-ym="${ym}" ${future ? 'disabled' : ''}>
-      <span class="d">${mo}월</span><span class="a">${t ? t.toLocaleString('ko-KR') : future ? '' : '-'}</span></button>`);
+      <span class="d">${mo}월</span><span class="a">${t ? manWon(t) : future ? '' : '-'}</span></button>`);
   }
 
   const sel = ui.monthSel && ui.monthSel.startsWith(String(year))
@@ -382,7 +395,7 @@ function renderMonthly() {
       ${cats.length ? `<ul class="bars big">${cats
         .map(([id, v]) => `<li>
           <div class="bar-label"><span>${esc(cat(id).icon)} ${esc(cat(id).name)}</span>
-            <b>${won(v)} <small>${Math.round((v / data.total) * 100)}%</small></b></div>
+            <b>${manWon(v)} <small>${Math.round((v / data.total) * 100)}%</small></b></div>
           <div class="hbar"><span style="width:${Math.max(2, Math.round((v / max) * 100))}%"></span></div>
         </li>`)
         .join('')}</ul>` : '<p class="hint">이 달에는 기록이 없어요</p>'}
@@ -398,8 +411,8 @@ function renderMonthly() {
       <button type="button" data-action="year-next" aria-label="다음 해" ${year >= Number(todayKey.slice(0, 4)) ? 'disabled' : ''}>›</button>
     </div>
     <div class="cal-stats">
-      <div><small>올해 지출</small><b class="${won(yearTotal).length > 8 ? 'long' : ''}">${won(yearTotal)}</b></div>
-      <div><small>월 평균</small><b class="${won(monthsWithData ? yearTotal / monthsWithData : 0).length > 8 ? 'long' : ''}">${won(monthsWithData ? yearTotal / monthsWithData : 0)}</b></div>
+      <div><small>올해 지출</small>${statB(manWon(yearTotal))}</div>
+      <div><small>월 평균</small>${statB(manWon(monthsWithData ? yearTotal / monthsWithData : 0))}</div>
       <div><small>목표 달성</small><b class="pos">${metGoal}개월</b></div>
     </div>
     <div class="mon-grid">${cells.join('')}</div>
