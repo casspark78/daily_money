@@ -1,5 +1,5 @@
 import { load, save, uid, normalize, resetState } from './store.js';
-import { toKey, parseKey, summarize, noSpendStreak } from './budget.js';
+import { toKey, parseKey, summarize, noSpendStreak, noSpendChecker } from './budget.js';
 import { suggestions } from './suggest.js';
 
 const MAX_DIGITS = 9; // 최대 999,999,999원
@@ -190,9 +190,6 @@ function renderEntry() {
       <button type="button" class="chip ${isToday ? '' : 'accent'}" data-action="pick-date">📅 ${isToday ? '오늘' : dayLabel(ui.date)}</button>
       <input type="date" id="date-input" class="visually-hidden" value="${ui.date}" max="${today()}" tabindex="-1" aria-label="날짜 선택">
       <button type="button" class="chip ${ui.memo ? 'accent' : ''}" data-action="toggle-memo">✏️ ${ui.memo ? esc(ui.memo) : '메모'}</button>
-      ${!editing && !state.expenses.some((e) => e.date === ui.date)
-        ? `<button type="button" class="chip ${state.noSpendDays.includes(ui.date) ? 'accent' : ''}" data-action="nospend">🙌 ${state.noSpendDays.includes(ui.date) ? '무지출 ✓' : '무지출'}</button>`
-        : ''}
       ${editing || ui.showMemo ? '' : renderChips()}
     </div>
     ${ui.showMemo ? `<input id="memo" class="memo" type="text" maxlength="40" placeholder="메모 (예: 점심 김밥)" value="${esc(ui.memo)}" enterkeyhint="done">` : ''}
@@ -251,7 +248,7 @@ function renderHistory() {
   const daysInMonth = new Date(y, m, 0).getDate();
   const firstDow = new Date(y, m - 1, 1).getDay();
   const allowance = state.settings.monthlyGoal / daysInMonth;
-  const noSpend = new Set(state.noSpendDays);
+  const isNoSpend = noSpendChecker(state, todayKey);
 
   const byDate = {};
   const byCategory = {};
@@ -269,7 +266,7 @@ function renderHistory() {
   let noSpendDays = 0;
   for (let d = 1; d <= elapsed; d++) {
     const k = `${ym}-${String(d).padStart(2, '0')}`;
-    if (!byDate[k] && noSpend.has(k)) noSpendDays++;
+    if (isNoSpend(k)) noSpendDays++;
   }
 
   let sel = ui.calSel && ui.calSel.startsWith(ym) ? ui.calSel : isCurrent ? todayKey : null;
@@ -285,12 +282,12 @@ function renderHistory() {
     if (future) cls += ' future';
     else if (amt > allowance) cls += ' over';
     else if (amt > 0) cls += ' under';
-    else if (noSpend.has(k)) cls += ' zero';
+    else if (isNoSpend(k)) cls += ' zero';
     if (k === todayKey) cls += ' today';
     if (k === sel) cls += ' sel';
     if (dow === 0) cls += ' sun';
     if (dow === 6) cls += ' sat';
-    const mark = amt > 0 ? manUnit(amt) : !future && noSpend.has(k) ? '🙌' : '';
+    const mark = amt > 0 ? manUnit(amt) : isNoSpend(k) ? '🙌' : '';
     cells.push(`<button type="button" class="${cls}" data-action="cal-day" data-date="${k}" ${future ? 'disabled' : ''}
         aria-label="${m}월 ${d}일${amt ? ' ' + won(amt) : ''}"><span class="d">${d}</span><span class="a">${mark}</span></button>`);
   }
@@ -307,7 +304,7 @@ function renderHistory() {
         <span class="${dayTotal > allowance ? 'neg' : 'pos'}">${dayTotal ? '-' + won(dayTotal) : ''}</span></div>
       ${list.length
         ? `<ul class="items">${renderItems(list)}</ul>`
-        : `<p class="hint">${noSpend.has(sel) ? '🙌 무지출 데이였어요' : '기록이 없어요'}</p>`}
+        : `<p class="hint">${isNoSpend(sel) ? '🙌 무지출 데이였어요' : sel === todayKey ? '아직 오늘 기록이 없어요' : '기록이 없어요'}</p>`}
       <button type="button" class="btn" data-action="add-on-day" data-date="${sel}">＋ 이 날 지출 추가</button>
     </section>`;
   }
@@ -322,14 +319,14 @@ function renderHistory() {
     <div class="cal-stats">
       <div><small>총 지출</small><b class="${won(total).length > 8 ? 'long' : ''}">${won(total)}</b></div>
       <div><small>하루 평균</small><b class="${won(elapsed ? total / elapsed : 0).length > 8 ? 'long' : ''}">${won(elapsed ? total / elapsed : 0)}</b></div>
-      <div><small>무지출</small><b class="pos">${noSpendDays}일</b></div>
+      <div><small>무지출</small><b class="nsp">${noSpendDays}일</b></div>
     </div>
     <div class="cal-grid">
       ${[...WEEK].map((w, i) => `<span class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}
       ${cells.join('')}
     </div>
     <p class="cal-legend unit">칸 안의 금액 단위: <b>만원</b></p>
-    <p class="cal-legend"><i class="lg under"></i>하루 예산 ${won(allowance)} 이하 <i class="lg over"></i>초과 · 🙌 무지출</p>
+    <p class="cal-legend"><i class="lg under"></i>하루 예산 ${won(allowance)} 이하 <i class="lg over"></i>초과 <i class="lg zero"></i>무지출</p>
   </section>
   ${detail}
   <section class="card">
@@ -604,16 +601,6 @@ document.addEventListener('click', (ev) => {
       toast(exists ? '이미 즐겨찾기에 있어요' : '⭐ 즐겨찾기에 추가했어요');
       resetEntry();
       ui.date = today();
-      render();
-      break;
-    }
-    case 'nospend': {
-      const d = ui.date;
-      const marked = state.noSpendDays.includes(d);
-      state.noSpendDays = marked ? state.noSpendDays.filter((x) => x !== d) : [...state.noSpendDays, d];
-      persist();
-      vibrate(30);
-      if (!marked) toast('🙌 무지출 데이! 잘하고 있어요');
       render();
       break;
     }

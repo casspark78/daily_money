@@ -84,15 +84,27 @@ export function summarize(state, todayKey) {
   };
 }
 
-// 지출이 없고 '무지출'로 체크된 날이 연속된 일수.
-// 오늘이 아직 체크되지 않았다면 어제부터 셉니다.
+// 기록을 시작한 날 (가장 이른 지출일). 그 전 날짜는 무지출로 보지 않습니다.
+export function trackingStart(state) {
+  let start = null;
+  for (const e of state.expenses) if (!start || e.date < start) start = e.date;
+  for (const d of state.noSpendDays) if (!start || d < start) start = d;
+  return start;
+}
+
+// 지난 날짜(오늘 제외) 중 지출 기록이 하나도 없는 날 = 무지출
+export function noSpendChecker(state, todayKey) {
+  const start = trackingStart(state);
+  const spent = new Set(state.expenses.map((e) => e.date));
+  return (k) => !!start && k >= start && k < todayKey && !spent.has(k);
+}
+
+// 어제부터 거슬러 올라가며 연속된 무지출 일수
 export function noSpendStreak(state, todayKey) {
-  const spentDays = new Set(state.expenses.map((e) => e.date));
-  const marked = new Set(state.noSpendDays);
-  const ok = (k) => marked.has(k) && !spentDays.has(k);
-  let k = ok(todayKey) ? todayKey : addDays(todayKey, -1);
+  const isNoSpend = noSpendChecker(state, todayKey);
+  let k = addDays(todayKey, -1);
   let n = 0;
-  while (ok(k)) {
+  while (isNoSpend(k)) {
     n += 1;
     k = addDays(k, -1);
   }
