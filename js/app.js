@@ -193,13 +193,13 @@ function renderEntry() {
       ${editing || ui.showMemo ? '' : renderChips()}
     </div>
     ${ui.showMemo ? `<input id="memo" class="memo" type="text" maxlength="40" placeholder="메모 (예: 점심 김밥)" value="${esc(ui.memo)}" enterkeyhint="done">` : ''}
+    <div class="keypad">${keys
+      .map((k) => `<button type="button" class="key ${k.startsWith('+') ? 'inc' : ''} ${k === 'clear' ? 'muted' : ''}" data-key="${k}" aria-label="${keyLabel[k] || k}">${keyLabel[k] || k}</button>`)
+      .join('')}</div>
     ${editing || state.expenses.length === 0
       ? `<p class="cat-title">${editing ? '카테고리를 누르면 수정이 저장돼요' : '금액 입력 후 카테고리를 누르면 저장돼요'}</p>`
       : ''}
     <div class="cats">${cats}</div>
-    <div class="keypad">${keys
-      .map((k) => `<button type="button" class="key ${k.startsWith('+') ? 'inc' : ''} ${k === 'clear' ? 'muted' : ''}" data-key="${k}" aria-label="${keyLabel[k] || k}">${keyLabel[k] || k}</button>`)
-      .join('')}</div>
   </section>`;
 }
 
