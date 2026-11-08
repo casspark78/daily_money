@@ -13,6 +13,8 @@
   --danger-soft: #fee2e2;
   --warn: #b45309;
   --warn-soft: #fef3c7;
+  --nsp: #6d28d9;
+  --nsp-soft: #ede9fe;
   --radius: 16px;
   --tabbar-h: 64px;
   color-scheme: light dark;
@@ -34,6 +36,8 @@
     --danger-soft: #3f1d1d;
     --warn: #fbbf24;
     --warn-soft: #3a2e10;
+    --nsp: #c4b5fd;
+    --nsp-soft: #2e1f5e;
     color-scheme: dark;
   }
 }
@@ -53,6 +57,8 @@
   --danger-soft: #3f1d1d;
   --warn: #fbbf24;
   --warn-soft: #3a2e10;
+  --nsp: #c4b5fd;
+  --nsp-soft: #2e1f5e;
   color-scheme: dark;
 }
 :root[data-theme="light"] { color-scheme: light; }
@@ -206,11 +212,6 @@ body.fixed .cats { margin-top: 10px; }
 .item .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
 .hint { margin-top: 10px; font-size: 12px; color: var(--muted); text-align: center; }
 
-.nospend {
-  width: 100%; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 700;
-  border: 2px dashed var(--line); color: var(--muted);
-}
-.nospend.on { border: 2px solid var(--primary); background: var(--primary-soft); color: var(--primary-ink); }
 
 /* 달력 */
 .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -233,7 +234,8 @@ body.fixed .cats { margin-top: 10px; }
 .cal-cell .a { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.6px; white-space: nowrap; line-height: 1.2; }
 .cal-cell.under { background: var(--primary-soft); color: var(--primary-ink); }
 .cal-cell.over { background: var(--danger-soft); color: var(--danger); }
-.cal-cell.zero { background: var(--primary-soft); }
+.cal-cell.zero { background: var(--nsp-soft); color: var(--nsp); }
+.cal-stats b.nsp { color: var(--nsp); }
 .cal-cell.future { background: none; opacity: .5; }
 .cal-cell.sun .d, .cal-dow.sun { color: var(--danger); }
 .cal-cell.sat .d, .cal-dow.sat { color: #3b82f6; }
@@ -245,6 +247,7 @@ body.fixed .cats { margin-top: 10px; }
 .cal-legend.unit + .cal-legend { margin-top: 4px; }
 .lg { display: inline-block; width: 14px; height: 14px; border-radius: 3px; margin-left: 6px; }
 .lg.under { background: var(--primary-soft); outline: 1px solid var(--primary); }
+.lg.zero { background: var(--nsp-soft); outline: 1px solid var(--nsp); }
 .lg.over { background: var(--danger-soft); outline: 1px solid var(--danger); }
 
 @media (max-width: 360px) {
