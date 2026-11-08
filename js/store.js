@@ -17,6 +17,8 @@ function defaultState() {
       monthlyGoal: 800000,
       monthStartDay: 1,
       theme: 'auto', // 'auto' | 'light' | 'dark'
+      lastBackupAt: null, // 마지막 백업 날짜 'YYYY-MM-DD'
+      backupSnoozeUntil: null, // 백업 알림을 미룬 날짜
       categories: DEFAULT_CATEGORIES.map((c) => ({ ...c })),
       favorites: [], // { id, category, amount, label }
     },

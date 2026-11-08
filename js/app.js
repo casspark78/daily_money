@@ -1,5 +1,6 @@
 import { load, save, uid, normalize, resetState } from './store.js';
-import { toKey, parseKey, summarize, noSpendStreak, noSpendChecker } from './budget.js';
+import { toKey, parseKey, addDays, summarize, noSpendStreak, noSpendChecker, trackingStart } from './budget.js';
+import { canShareFiles, shareBackup, requestPersist, backupDue, backupFileName, backupJson, daysBetween, SNOOZE_DAYS } from './backup.js';
 import { suggestions } from './suggest.js';
 
 const MAX_DIGITS = 9; // 최대 999,999,999원
@@ -16,6 +17,7 @@ const ui = {
   calMonth: null, // 'YYYY-MM'
   calSel: null, // 달력에서 선택한 날짜
   year: null, // 월별 탭에서 보는 연도
+  persisted: null, // 저장소 보호 여부
   monthSel: null, // 월별 탭에서 선택한 달 'YYYY-MM'
 };
 
@@ -407,6 +409,56 @@ function renderMonthly() {
   ${detail}`;
 }
 
+function backupAgo() {
+  const last = state.settings.lastBackupAt;
+  if (!last) return null;
+  const d = daysBetween(last, today());
+  return d <= 0 ? '오늘' : `${d}일 전`;
+}
+
+function renderBackupStatus() {
+  const ago = backupAgo();
+  const last = state.settings.lastBackupAt;
+  const protect = ui.persisted === true
+    ? '<p class="status ok">🔒 데이터 보호: 켜짐</p>'
+    : ui.persisted === false
+      ? '<p class="status warn">🔓 데이터 보호: 꺼짐 · 홈 화면에 설치하면 더 안전해요</p>'
+      : '';
+  return `
+    <p class="status ${ago ? 'ok' : 'warn'}">${ago
+      ? `📦 마지막 백업: ${dayLabel(last)} (${ago})`
+      : '📦 아직 백업한 적이 없어요'}</p>
+    ${protect}`;
+}
+
+// 백업 알림 창
+function showBackupReminder() {
+  const last = state.settings.lastBackupAt;
+  const el = $('#modal');
+  el.innerHTML = `
+    <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <p id="modal-title" class="modal-title">📦 백업할 때가 됐어요</p>
+      <p class="modal-text">${last ? `마지막 백업 후 ${daysBetween(last, today())}일이 지났어요.` : '아직 백업을 한 번도 안 했어요.'}
+        폰을 바꾸거나 잃어버리면 기록이 사라질 수 있어요.</p>
+      <button type="button" class="btn primary" data-action="${canShareFiles() ? 'backup-share' : 'export-json'}">
+        ${canShareFiles() ? '📤 지금 백업 파일 보내기' : '💾 지금 백업 파일 저장'}</button>
+      <button type="button" class="btn" data-action="backup-later">나중에 (${SNOOZE_DAYS}일 뒤 다시 알림)</button>
+    </div>`;
+  el.hidden = false;
+}
+
+function closeModal() {
+  const el = $('#modal');
+  el.hidden = true;
+  el.innerHTML = '';
+}
+
+function markBackedUp() {
+  state.settings.lastBackupAt = today();
+  state.settings.backupSnoozeUntil = null;
+  persist();
+}
+
 function renderSettings() {
   const st = state.settings;
   const days = Array.from({ length: 28 }, (_, i) => i + 1)
@@ -450,13 +502,15 @@ function renderSettings() {
   </section>
   <section class="card form">
     <h2>백업</h2>
-    <div class="row">
-      <button type="button" class="btn" data-action="export-json">JSON 백업</button>
-      <button type="button" class="btn" data-action="export-csv">CSV 내보내기</button>
-    </div>
-    <label class="btn file">백업 파일 불러오기<input id="import" type="file" accept="application/json,.json" class="visually-hidden"></label>
+    ${renderBackupStatus()}
+    ${canShareFiles()
+      ? `<button type="button" class="btn primary" data-action="backup-share">📤 백업 파일 보내기 (카톡·메일)</button>
+         <button type="button" class="btn" data-action="export-json">💾 백업 파일 저장</button>`
+      : '<button type="button" class="btn primary" data-action="export-json">💾 백업 파일 저장</button>'}
+    <label class="btn file">📥 백업 파일 불러오기<input id="import" type="file" accept="application/json,.json" class="visually-hidden"></label>
+    <button type="button" class="btn" data-action="export-csv">엑셀용 CSV 내보내기</button>
     <button type="button" class="btn danger" data-action="reset">모든 데이터 삭제</button>
-    <p class="hint">데이터는 이 기기의 브라우저에만 저장돼요. 기기를 바꾸기 전에 백업해 주세요.</p>
+    <p class="hint">기록은 이 폰에만 저장돼요. 백업 파일을 카톡 '나와의 채팅'이나 메일로 보내 두면, 폰을 바꿔도 '백업 파일 불러오기'로 그대로 옮길 수 있어요.</p>
   </section>`;
 }
 
@@ -628,7 +682,34 @@ document.addEventListener('click', (ev) => {
       render();
       break;
     case 'export-json':
-      download(`daily-money-${today()}.json`, JSON.stringify(state, null, 2), 'application/json');
+      download(backupFileName(today()), backupJson(state), 'application/json');
+      markBackedUp();
+      closeModal();
+      if (ui.tab === 'settings') render();
+      toast('백업 파일을 저장했어요');
+      break;
+    case 'backup-share': {
+      shareBackup(state, today()).then((result) => {
+        if (result === 'shared') {
+          markBackedUp();
+          closeModal();
+          if (ui.tab === 'settings') render();
+          toast('백업 파일을 보냈어요');
+        } else if (result === 'error') {
+          // 공유가 안 되면 파일로 저장
+          download(backupFileName(today()), backupJson(state), 'application/json');
+          markBackedUp();
+          closeModal();
+          if (ui.tab === 'settings') render();
+          toast('백업 파일을 저장했어요');
+        }
+      });
+      break;
+    }
+    case 'backup-later':
+      state.settings.backupSnoozeUntil = addDays(today(), SNOOZE_DAYS);
+      persist();
+      closeModal();
       break;
     case 'export-csv': {
       const rows = [['날짜', '카테고리', '금액', '메모']];
@@ -684,6 +765,7 @@ document.addEventListener('change', async (ev) => {
       const data = normalize(JSON.parse(await t.files[0].text()));
       if (!confirm(`지출 ${data.expenses.length}건을 불러와 현재 데이터를 덮어쓸까요?`)) return;
       state = data;
+      state.settings.lastBackupAt = today();
       persist();
       applyTheme();
       render();
@@ -768,6 +850,15 @@ const params = new URLSearchParams(location.search);
 if (params.get('action') === 'add') ui.tab = 'today';
 applyTheme();
 render();
+
+requestPersist().then((ok) => {
+  ui.persisted = ok;
+  if (ui.tab === 'settings') render();
+});
+
+if (state.expenses.length > 0 && backupDue(state.settings, today(), trackingStart(state))) {
+  setTimeout(showBackupReminder, 800);
+}
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
