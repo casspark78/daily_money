@@ -1,5 +1,5 @@
 // 오프라인 캐시. 파일을 바꾸면 CACHE 버전을 올려 주세요.
-const CACHE = 'daily-money-v9';
+const CACHE = 'daily-money-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS = [
   './js/store.js',
   './js/budget.js',
   './js/suggest.js',
+  './js/backup.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',

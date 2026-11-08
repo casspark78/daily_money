@@ -318,6 +318,20 @@ body.fixed .cats { margin-top: 10px; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .row .btn { margin-top: 0; }
 
+/* 백업 상태 / 알림 창 */
+.status { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.status.ok { color: var(--primary-ink); }
+.status.warn { color: var(--warn); }
+.btn.primary { background: var(--primary); color: #fff; }
+.modal-back {
+  position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgb(0 0 0 / .45);
+}
+.modal-back[hidden] { display: none; }
+.modal { width: 100%; max-width: 380px; padding: 22px 18px; }
+.modal-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.modal-text { font-size: 16px; line-height: 1.5; color: var(--text); margin-bottom: 8px; }
+
 /* 토스트 */
 .toast {
   position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
