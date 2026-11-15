@@ -261,6 +261,23 @@ body.fixed .cats { margin-top: 10px; }
   .cal-stats b.long { font-size: 18px; }
 }
 
+/* 홈 요약 + 지출 입력 버튼 */
+.home-sum { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.home-sum .hs-text { display: grid; gap: 2px; }
+.home-sum .label { font-size: 16px; font-weight: 700; }
+.home-sum .streak { font-size: 14px; }
+.home-sum .hs-big { font-size: 32px; font-weight: 800; letter-spacing: -.8px; color: var(--primary-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.home-sum .hs-big.neg { color: var(--danger); }
+.fab-add {
+  position: fixed; z-index: 9; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 10px);
+  width: calc(100% - 24px); max-width: 456px; height: 56px; border-radius: 16px;
+  background: var(--primary); color: #fff; font-size: 19px; font-weight: 800;
+  box-shadow: 0 6px 18px rgb(0 0 0 / .18);
+}
+.fab-add:active { transform: translateX(-50%) scale(.98); }
+body.has-fab { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 84px); }
+
 /* 월별 */
 .mon-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0 4px; }
 .mon-cell {
