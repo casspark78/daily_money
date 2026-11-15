@@ -8,7 +8,8 @@ const WEEK = '일월화수목금토';
 
 let state = load();
 const ui = {
-  tab: 'today',
+  tab: 'history', // 첫 화면: 홈(달력)
+  returnTo: null, // 입력을 마치면 돌아갈 탭
   amount: '',
   date: toKey(new Date()),
   memo: '',
@@ -110,9 +111,21 @@ function resetEntry() {
   ui.editingId = null;
 }
 
+// 입력·수정을 마친 뒤: 홈(달력)에서 왔으면 달력으로 돌아가 그 날짜를 보여줌
+function finishEntry(date) {
+  if (ui.returnTo !== 'history') return;
+  ui.returnTo = null;
+  ui.tab = 'history';
+  ui.calMonth = date.slice(0, 7);
+  ui.calSel = date;
+  ui.date = today();
+  window.scrollTo(0, 0);
+}
+
 function startEdit(id) {
   const e = state.expenses.find((x) => x.id === id);
   if (!e) return;
+  ui.returnTo = ui.tab === 'history' ? 'history' : null;
   ui.tab = 'today';
   ui.editingId = id;
   ui.amount = String(e.amount);
@@ -128,6 +141,7 @@ function render() {
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === ui.tab));
   // 오늘 탭은 스크롤 없이 한 화면에 고정
   document.body.classList.toggle('fixed', ui.tab === 'today');
+  document.body.classList.toggle('has-fab', ui.tab === 'history');
   if (ui.tab === 'today') view.innerHTML = renderToday();
   else if (ui.tab === 'history') view.innerHTML = renderHistory();
   else if (ui.tab === 'monthly') view.innerHTML = renderMonthly();
@@ -256,6 +270,21 @@ function shiftMonth(ym, n) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// 홈(달력) 위쪽: 오늘 쓸 수 있는 돈 한 줄 요약
+function renderHomeSummary() {
+  const s = summarize(state, today());
+  const over = s.todayLeft < 0;
+  const streak = noSpendStreak(state, today());
+  return `
+  <section class="card home-sum">
+    <div class="hs-text">
+      <span class="label">${over ? '오늘 예산 초과' : '오늘 쓸 수 있는 돈'}</span>
+      ${streak > 0 ? `<span class="streak">🔥 무지출 ${streak}일</span>` : ''}
+    </div>
+    <span class="hs-big ${over ? 'neg' : ''}">${over ? '-' : ''}${won(s.todayLeft)}</span>
+  </section>`;
+}
+
 function renderHistory() {
   const todayKey = today();
   const ym = ui.calMonth || todayKey.slice(0, 7);
@@ -320,6 +349,7 @@ function renderHistory() {
   }
 
   return `
+  ${renderHomeSummary()}
   <section class="card cal">
     <div class="cal-nav">
       <button type="button" data-action="cal-prev" aria-label="이전 달">‹</button>
@@ -338,7 +368,8 @@ function renderHistory() {
     <p class="cal-legend unit">칸 안의 금액 단위: <b>만원</b></p>
     <p class="cal-legend"><i class="lg under"></i>하루 예산 ${won(allowance)} 이하 <i class="lg over"></i>초과 <i class="lg zero"></i>무지출</p>
   </section>
-  ${detail}`;
+  ${detail}
+  <button type="button" class="fab-add" data-action="add-today">＋ 지출 입력</button>`;
 }
 
 function renderMonthly() {
@@ -559,6 +590,7 @@ document.addEventListener('click', (ev) => {
 
   if (t.dataset.tab) {
     ui.tab = t.dataset.tab;
+    ui.returnTo = null;
     if (ui.tab !== 'today') resetEntry();
     render();
     window.scrollTo(0, 0);
@@ -576,7 +608,9 @@ document.addEventListener('click', (ev) => {
       } else {
         addExpense({ amount, category: t.dataset.cat, memo: ui.memo.trim() });
       }
+      const savedDate = ui.date;
       resetEntry();
+      finishEntry(savedDate);
       render();
       break;
     }
@@ -608,8 +642,16 @@ document.addEventListener('click', (ev) => {
       ui.calSel = t.dataset.date;
       render();
       break;
+    case 'add-today':
+      resetEntry();
+      ui.returnTo = 'history';
+      ui.tab = 'today';
+      ui.date = today();
+      render();
+      break;
     case 'add-on-day':
       resetEntry();
+      ui.returnTo = 'history';
       ui.tab = 'today';
       ui.date = t.dataset.date;
       render();
@@ -617,6 +659,7 @@ document.addEventListener('click', (ev) => {
       break;
     case 'quick':
       addExpense({ amount: Number(t.dataset.amount), category: t.dataset.cat, memo: t.dataset.memo || '' });
+      finishEntry(ui.date);
       render();
       break;
     case 'undo':
@@ -634,16 +677,22 @@ document.addEventListener('click', (ev) => {
       render();
       if (ui.showMemo) $('#memo')?.focus();
       break;
-    case 'cancel-edit':
+    case 'cancel-edit': {
+      const d = ui.date;
       resetEntry();
+      finishEntry(d);
       ui.date = today();
       render();
       break;
-    case 'delete-editing':
+    }
+    case 'delete-editing': {
+      const d = ui.date;
       deleteExpense(ui.editingId);
       resetEntry();
+      finishEntry(d);
       render();
       break;
+    }
     case 'fav-from-edit': {
       const e = state.expenses.find((x) => x.id === ui.editingId);
       if (!e) break;
@@ -654,7 +703,9 @@ document.addEventListener('click', (ev) => {
         persist();
       }
       toast(exists ? '이미 즐겨찾기에 있어요' : '⭐ 즐겨찾기에 추가했어요');
+      const d = ui.date;
       resetEntry();
+      finishEntry(d);
       ui.date = today();
       render();
       break;
@@ -860,7 +911,7 @@ darkQuery.addEventListener?.('change', applyTheme);
 
 // ---------- 시작 ----------
 const params = new URLSearchParams(location.search);
-if (params.get('action') === 'add') ui.tab = 'today';
+if (params.get('action') === 'add') ui.tab = 'today'; // 홈 화면 바로가기 '지출 추가'
 applyTheme();
 render();
 
