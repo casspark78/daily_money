@@ -365,8 +365,6 @@ function renderHistory() {
       ${[...WEEK].map((w, i) => `<span class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}
       ${cells.join('')}
     </div>
-    <p class="cal-legend unit">칸 안의 금액 단위: <b>만원</b></p>
-    <p class="cal-legend"><i class="lg under"></i>하루 예산 ${won(allowance)} 이하 <i class="lg over"></i>초과 <i class="lg zero"></i>무지출</p>
   </section>
   ${detail}
   <button type="button" class="fab-add" data-action="add-today">＋ 지출 입력</button>`;
