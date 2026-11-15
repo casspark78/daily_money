@@ -135,6 +135,11 @@ body.fixed .key { height: auto !important; min-height: 0; }
 body.fixed .memo { margin-top: 8px; }
 body.fixed .cats { margin-top: 10px; }
 
+/* 입력 화면 상단 */
+.entry-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.entry-top .back { padding: 8px 14px; border-radius: 12px; background: var(--key); font-size: 16px; font-weight: 700; }
+.entry-top span { font-size: 16px; font-weight: 700; color: var(--muted); }
+
 /* 입력 */
 .entry.editing { outline: 2px solid var(--primary); }
 .edit-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; font-size: 13px; }
@@ -363,7 +368,7 @@ body.has-fab { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom
 /* 하단 탭 */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(3, 1fr);
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--card); border-top: 1px solid var(--line);
