@@ -33,7 +33,7 @@ python3 -m http.server 8000
 저장소 Settings → Pages → Branch를 배포할 브랜치와 `/ (root)`로 지정하면
 `https://<user>.github.io/daily_money/`에서 사용할 수 있습니다. 모든 경로가 상대 경로라 하위 경로에서도 동작합니다.
 
-> 파일을 수정한 뒤에는 `sw.js`의 `CACHE` 버전을 올려야 설치된 앱이 새 버전을 받습니다.
+> 서비스워커는 네트워크 우선이라 온라인이면 항상 최신 파일을 받고, 오프라인일 때만 캐시를 씁니다. 파일을 추가하면 `sw.js`의 `ASSETS`와 `CACHE` 버전을 함께 바꿔 주세요.
 
 ## 구조
 ```
