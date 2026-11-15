@@ -9,7 +9,6 @@ const WEEK = '일월화수목금토';
 let state = load();
 const ui = {
   tab: 'history', // 첫 화면: 홈(달력)
-  returnTo: null, // 입력을 마치면 돌아갈 탭
   amount: '',
   date: toKey(new Date()),
   memo: '',
@@ -111,10 +110,8 @@ function resetEntry() {
   ui.editingId = null;
 }
 
-// 입력·수정을 마친 뒤: 홈(달력)에서 왔으면 달력으로 돌아가 그 날짜를 보여줌
+// 입력·수정을 마친 뒤: 홈(달력)으로 돌아가 그 날짜를 보여줌
 function finishEntry(date) {
-  if (ui.returnTo !== 'history') return;
-  ui.returnTo = null;
   ui.tab = 'history';
   ui.calMonth = date.slice(0, 7);
   ui.calSel = date;
@@ -125,7 +122,6 @@ function finishEntry(date) {
 function startEdit(id) {
   const e = state.expenses.find((x) => x.id === id);
   if (!e) return;
-  ui.returnTo = ui.tab === 'history' ? 'history' : null;
   ui.tab = 'today';
   ui.editingId = id;
   ui.amount = String(e.amount);
@@ -146,34 +142,6 @@ function render() {
   else if (ui.tab === 'history') view.innerHTML = renderHistory();
   else if (ui.tab === 'monthly') view.innerHTML = renderMonthly();
   else view.innerHTML = renderSettings();
-}
-
-function renderSummary(s) {
-  const goal = state.settings.monthlyGoal;
-  const pct = Math.min(100, Math.round(s.usedRatio * 100));
-  const over = s.todayLeft < 0;
-  let pace = '';
-  if (goal > 0 && s.period.daysElapsed >= 3 && s.spentTotal > 0) {
-    const diff = goal - s.projected;
-    pace = diff < 0
-      ? `<p class="pace warn">⚠️ 이 속도면 월말에 ${won(diff)} 초과 예상</p>`
-      : `<p class="pace good">👍 이 속도면 월말에 ${won(diff)} 남아요</p>`;
-  }
-  const streak = noSpendStreak(state, today());
-  return `
-  <section class="summary card">
-    <div class="sum-row muted"><span class="period">${s.period.label} · 남은 ${s.period.daysLeft}일</span>
-      ${streak > 0 ? `<span class="streak">🔥 무지출 ${streak}일</span>` : ''}</div>
-    <div class="sum-row main">
-      <span class="label">${over ? '오늘 예산 초과' : '오늘 쓸 수 있는 돈'}</span>
-      <span class="big ${over ? 'neg' : ''}">${over ? '-' : ''}${won(s.todayLeft)}</span>
-    </div>
-    <div class="bar ${s.usedRatio > 1 ? 'over' : ''}" role="progressbar" aria-label="이번 달 사용률" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-      <span style="width:${pct}%"></span>
-    </div>
-    <div class="sum-row muted sub"><span>이번 달 ${won(s.spentTotal)} / ${won(goal)}</span><span>${Math.round(s.usedRatio * 100)}%</span></div>
-    ${pace}
-  </section>`;
 }
 
 function renderChips() {
@@ -197,6 +165,8 @@ function renderEntry() {
   const keyLabel = { '+1000': '+1천', '+5000': '+5천', '+10000': '+1만', back: '⌫', clear: 'C' };
   return `
   <section class="entry card ${editing ? 'editing' : ''}">
+    ${editing ? '' : `<div class="entry-top"><button type="button" class="back" data-action="go-home">← 홈</button>
+      <span>${isToday ? '오늘' : dayLabel(ui.date)} 지출 입력</span></div>`}
     ${editing ? `<div class="edit-bar"><span>✏️ 수정 중</span>
       <button type="button" data-action="fav-from-edit">⭐ 즐겨찾기</button>
       <button type="button" data-action="delete-editing" class="danger">🗑 삭제</button>
@@ -239,9 +209,7 @@ function renderItems(list) {
 
 
 function renderToday() {
-  const s = summarize(state, today());
-  // 수정 중에는 요약을 숨겨 키패드 공간 확보
-  return (ui.editingId ? '' : renderSummary(s)) + renderEntry();
+  return renderEntry();
 }
 
 // 합계 금액을 '만' 단위로 짧게 (예: 300,000 → 30만, 1,362,850 → 136.3만, 8,500 → 8,500원)
@@ -588,7 +556,6 @@ document.addEventListener('click', (ev) => {
 
   if (t.dataset.tab) {
     ui.tab = t.dataset.tab;
-    ui.returnTo = null;
     if (ui.tab !== 'today') resetEntry();
     render();
     window.scrollTo(0, 0);
@@ -640,16 +607,21 @@ document.addEventListener('click', (ev) => {
       ui.calSel = t.dataset.date;
       render();
       break;
+    case 'go-home':
+      resetEntry();
+      ui.tab = 'history';
+      ui.date = today();
+      render();
+      window.scrollTo(0, 0);
+      break;
     case 'add-today':
       resetEntry();
-      ui.returnTo = 'history';
       ui.tab = 'today';
       ui.date = today();
       render();
       break;
     case 'add-on-day':
       resetEntry();
-      ui.returnTo = 'history';
       ui.tab = 'today';
       ui.date = t.dataset.date;
       render();
